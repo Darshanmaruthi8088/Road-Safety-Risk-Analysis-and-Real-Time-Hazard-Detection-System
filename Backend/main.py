@@ -1,4 +1,5 @@
-from fastapi import FastAPI
+
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
 import math
@@ -10,6 +11,9 @@ app = FastAPI(
     version="1.0.0"
 )
 
+from filters_api import router as filters_router
+
+app.include_router(filters_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -47,6 +51,8 @@ def calculate_distance(lat1, lon1, lat2, lon2):
         * math.sin(dlon / 2) ** 2
     )
 
+    a = max(0.0, min(1.0, a))
+
     c = 2 * math.atan2(
         math.sqrt(a),
         math.sqrt(1 - a)
@@ -72,6 +78,18 @@ def get_risk(
     longitude: float
 ):
 
+    if not -90 <= latitude <= 90:
+        raise HTTPException(
+            status_code=422,
+            detail="Latitude must be between -90 and 90"
+        )
+
+    if not -180 <= longitude <= 180:
+        raise HTTPException(
+            status_code=422,
+            detail="Longitude must be between -180 and 180"
+        )
+
     nearest_zone = None
     nearest_distance = float("inf")
 
@@ -81,8 +99,8 @@ def get_risk(
         distance = calculate_distance(
             latitude,
             longitude,
-            zone["lat_grid"],
-            zone["lon_grid"]
+            float(zone["lat_grid"]),
+            float(zone["lon_grid"])
         )
 
         if distance < nearest_distance:
@@ -112,7 +130,7 @@ def get_risk(
             2
         ),
 
-        "risk_level": nearest_zone["risk_level"],
+        "risk_level": str(nearest_zone["risk_level"]),
 
         "accident_count": int(
             nearest_zone["accident_count"]
@@ -173,7 +191,7 @@ def get_risk_zones():
                 2
             ),
 
-            "risk_level": zone["risk_level"]
+            "risk_level": str(zone["risk_level"])
         })
 
 
@@ -285,6 +303,8 @@ def get_statistics():
         }
     }
 
+
+
 @app.get("/analysis")
 def get_analysis():
 
@@ -312,26 +332,67 @@ def get_analysis():
         .to_dict()
     )
 
+    # Hourly accident distribution
+    hourly_counts = (
+        accident_data["hour"]
+        .value_counts()
+        .reindex(range(24), fill_value=0)
+        .sort_index()
+        .to_dict()
+    )
+
+    # Classify accidents by time of day
+    def classify_time(hour):
+        if 5 <= hour < 12:
+            return "Morning"
+        elif 12 <= hour < 17:
+            return "Afternoon"
+        elif 17 <= hour < 21:
+            return "Evening"
+        else:
+            return "Night"
+
+    time_period_counts = (
+        accident_data["hour"]
+        .apply(classify_time)
+        .value_counts()
+        .reindex(
+            ["Morning", "Afternoon", "Evening", "Night"],
+            fill_value=0
+        )
+        .to_dict()
+    )
+
     return {
         "status": "success",
 
         "causes": {
-            key: int(value)
+            str(key): int(value)
             for key, value in cause_counts.items()
         },
 
         "weather": {
-            key: int(value)
+            str(key): int(value)
             for key, value in weather_counts.items()
         },
 
         "road_types": {
-            key: int(value)
+            str(key): int(value)
             for key, value in road_type_counts.items()
         },
 
         "traffic_density": {
-            key: int(value)
+            str(key): int(value)
             for key, value in traffic_density_counts.items()
+        },
+
+        "hourly": {
+            str(key): int(value)
+            for key, value in hourly_counts.items()
+        },
+
+        "time_period": {
+            str(key): int(value)
+            for key, value in time_period_counts.items()
         }
     }

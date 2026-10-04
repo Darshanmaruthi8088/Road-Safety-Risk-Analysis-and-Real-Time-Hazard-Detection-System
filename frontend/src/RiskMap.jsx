@@ -4,182 +4,162 @@ import {
   TileLayer,
   CircleMarker,
   Popup,
-  useMap
+  useMap,
 } from "react-leaflet";
 
 import "leaflet/dist/leaflet.css";
 
+const API_URL = "http://127.0.0.1:8000";
 
 function MapController({ latitude, longitude }) {
-
   const map = useMap();
 
   useEffect(() => {
-
-    if (latitude && longitude) {
-
-      map.setView(
-        [latitude, longitude],
-        12
-      );
+    if (
+      Number.isFinite(latitude) &&
+      Number.isFinite(longitude)
+    ) {
+      map.setView([latitude, longitude], 12);
     }
-
   }, [latitude, longitude, map]);
 
   return null;
 }
 
-
 function getRiskColor(level) {
-
-  if (level === "Critical") {
-    return "#ef4444";
+  switch (String(level).toLowerCase()) {
+    case "critical":
+      return "#ef4444";
+    case "high":
+      return "#f97316";
+    case "moderate":
+      return "#facc15";
+    default:
+      return "#22c55e";
   }
-
-  if (level === "High") {
-    return "#f97316";
-  }
-
-  if (level === "Moderate") {
-    return "#facc15";
-  }
-
-  return "#22c55e";
 }
 
-
-function RiskMap({ userLocation }) {
-
+function RiskMap({
+  userLocation,
+  city = "All",
+  severity = "All",
+  weather = "All",
+  timePeriod = "All",
+}) {
   const [zones, setZones] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-
   useEffect(() => {
+    const controller = new AbortController();
 
-    fetch("http://127.0.0.1:8000/risk-zones")
-      .then((response) => {
+    async function loadZones() {
+      setLoading(true);
+      setError("");
+
+      try {
+        const params = new URLSearchParams({
+          city,
+          severity,
+          weather,
+          time_period: timePeriod,
+        });
+
+        const response = await fetch(
+          `${API_URL}/filtered-risk-zones?${params.toString()}`,
+          { signal: controller.signal }
+        );
 
         if (!response.ok) {
-          throw new Error("Failed to load risk zones");
+          throw new Error("Failed to load filtered risk zones.");
         }
 
-        return response.json();
-      })
-      .then((data) => {
+        const data = await response.json();
+        setZones(Array.isArray(data.zones) ? data.zones : []);
+      } catch (err) {
+        if (err.name !== "AbortError") {
+          setError("Unable to load map zones. Check the backend.");
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
+      }
+    }
 
-        setZones(data.zones);
+    loadZones();
 
-      })
-      .catch(() => {
-
-        setError("Unable to load risk zones.");
-
-      });
-
-  }, []);
-
+    return () => controller.abort();
+  }, [city, severity, weather, timePeriod]);
 
   return (
     <div className="real-map">
+      {loading && <div className="map-error">Updating map...</div>}
 
-      {error && (
+      {error && <div className="map-error">{error}</div>}
+
+      {!loading && !error && zones.length === 0 && (
         <div className="map-error">
-          {error}
+          No risk zones match the selected filters.
         </div>
       )}
 
       <MapContainer
         center={[22.5, 80]}
         zoom={5}
-        style={{
-          height: "100%",
-          width: "100%"
-        }}
+        style={{ height: "100%", width: "100%" }}
       >
-
         <TileLayer
           attribution='&copy; OpenStreetMap contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
+        {zones.map((zone, index) => {
+          const color = getRiskColor(zone.risk_level);
 
-        {zones.map((zone, index) => (
-
-          <CircleMarker
-            key={index}
-            center={[
-              zone.latitude,
-              zone.longitude
-            ]}
-            radius={Math.max(
-              6,
-              Math.min(
-                18,
-                zone.accident_count / 50
-              )
-            )}
-            pathOptions={{
-              color: getRiskColor(zone.risk_level),
-              fillColor: getRiskColor(zone.risk_level),
-              fillOpacity: 0.65
-            }}
-          >
-
-            <Popup>
-
-              <strong>
-                {zone.risk_level} Risk
-              </strong>
-
-              <br />
-
-              Risk Score:
-              {" "}
-              {zone.risk_score}
-
-              <br />
-
-              Accidents:
-              {" "}
-              {zone.accident_count}
-
-              <br />
-
-              Casualties:
-              {" "}
-              {zone.total_casualties}
-
-              <br />
-
-              Coordinates:
-              {" "}
-              {zone.latitude},
-              {" "}
-              {zone.longitude}
-
-            </Popup>
-
-          </CircleMarker>
-
-        ))}
-
+          return (
+            <CircleMarker
+              key={`${zone.latitude}-${zone.longitude}-${index}`}
+              center={[zone.latitude, zone.longitude]}
+              radius={Math.max(
+                6,
+                Math.min(18, Number(zone.accident_count || 0) / 50)
+              )}
+              pathOptions={{
+                color,
+                fillColor: color,
+                fillOpacity: 0.65,
+              }}
+            >
+              <Popup>
+                <strong>{zone.risk_level} Risk</strong>
+                <br />
+                Risk Score: {zone.risk_score}
+                <br />
+                Accidents: {zone.accident_count}
+                <br />
+                Casualties: {zone.total_casualties}
+                <br />
+                Coordinates: {zone.latitude}, {zone.longitude}
+              </Popup>
+            </CircleMarker>
+          );
+        })}
 
         {userLocation && (
-
           <>
             <CircleMarker
               center={[
                 userLocation.latitude,
-                userLocation.longitude
+                userLocation.longitude,
               ]}
               radius={9}
               pathOptions={{
                 color: "#2563eb",
                 fillColor: "#2563eb",
-                fillOpacity: 1
+                fillOpacity: 1,
               }}
             >
-
               <Popup>
                 <strong>Your Location</strong>
                 <br />
@@ -187,7 +167,6 @@ function RiskMap({ userLocation }) {
                 <br />
                 Longitude: {userLocation.longitude}
               </Popup>
-
             </CircleMarker>
 
             <MapController
@@ -195,11 +174,8 @@ function RiskMap({ userLocation }) {
               longitude={userLocation.longitude}
             />
           </>
-
         )}
-
       </MapContainer>
-
     </div>
   );
 }

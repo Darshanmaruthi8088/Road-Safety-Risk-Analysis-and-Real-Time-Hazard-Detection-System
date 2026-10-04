@@ -2,6 +2,13 @@ import { useEffect, useState } from "react";
 import "./App.css";
 import RiskMap from "./RiskMap";
 
+const safePercentage = (value, total) => {
+  const numerator = Number(value);
+  const denominator = Number(total);
+  if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator <= 0) return 0;
+  return (numerator / denominator) * 100;
+};
+
 function App() {
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
@@ -14,44 +21,62 @@ function App() {
   const [statsLoading, setStatsLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    fetch("http://127.0.0.1:8000/statistics")
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Failed to load statistics.");
-        }
+  const [filters, setFilters] = useState({
+    city: "All",
+    severity: "All",
+    weather: "All",
+    time_period: "All",
+  });
+  const [filterOptions, setFilterOptions] = useState({
+    cities: [],
+    severities: [],
+    weather: [],
+    time_periods: [],
+  });
 
+  useEffect(() => {
+    const controller = new AbortController();
+    const params = new URLSearchParams();
+
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value && value !== "All") params.set(key, value);
+    });
+
+    setStatsLoading(true);
+    fetch(`http://127.0.0.1:8000/filtered-dashboard?${params.toString()}`, {
+      signal: controller.signal,
+    })
+      .then((response) => {
+        if (!response.ok) throw new Error("Failed to load filtered dashboard data.");
         return response.json();
       })
       .then((data) => {
-        setStatistics(data);
+        setStatistics(data.statistics);
+        setAnalysis(data.analysis);
+        setFilterOptions(data.filter_options);
+        setError("");
       })
-      .catch(() => {
-        setError(
-          "Could not load dashboard statistics. Make sure FastAPI is running."
-        );
+      .catch((err) => {
+        if (err.name !== "AbortError") {
+          setError(
+            "Could not load filtered dashboard data. Check that the FastAPI filters router is registered and the backend is running."
+          );
+        }
       })
       .finally(() => {
-        setStatsLoading(false);
+        if (!controller.signal.aborted) setStatsLoading(false);
       });
 
-    fetch("http://127.0.0.1:8000/analysis")
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Failed to load analysis.");
-        }
+    return () => controller.abort();
+  }, [filters]);
 
-        return response.json();
-      })
-      .then((data) => {
-        setAnalysis(data);
-      })
-      .catch(() => {
-        setError(
-          "Could not load EDA analysis data. Make sure the /analysis endpoint is available."
-        );
-      });
-  }, []);
+  const updateFilter = (name, value) => {
+    setFilters((current) => ({ ...current, [name]: value }));
+  };
+
+  const resetFilters = () => {
+    setFilters({ city: "All", severity: "All", weather: "All", time_period: "All" });
+  };
 
   const detectLocation = () => {
     setError("");
@@ -174,6 +199,57 @@ function App() {
         )}
 
 
+        <section className="filter-panel panel">
+          <div className="filter-heading">
+            <div>
+              <h3>Filter Accident Records</h3>
+              <p>Choose one or more conditions to update the statistics and charts.</p>
+            </div>
+            <button className="reset-filters-btn" type="button" onClick={resetFilters}>
+              Reset filters
+            </button>
+          </div>
+
+          <div className="filter-grid">
+            <label className="filter-control">
+              <span>City</span>
+              <select value={filters.city} onChange={(event) => updateFilter("city", event.target.value)}>
+                <option value="All">All cities</option>
+                {filterOptions.cities.map((city) => <option key={city} value={city}>{city}</option>)}
+              </select>
+            </label>
+
+            <label className="filter-control">
+              <span>Accident severity</span>
+              <select value={filters.severity} onChange={(event) => updateFilter("severity", event.target.value)}>
+                <option value="All">All severities</option>
+                {filterOptions.severities.map((severity) => <option key={severity} value={severity}>{severity}</option>)}
+              </select>
+            </label>
+
+            <label className="filter-control">
+              <span>Weather</span>
+              <select value={filters.weather} onChange={(event) => updateFilter("weather", event.target.value)}>
+                <option value="All">All weather conditions</option>
+                {filterOptions.weather.map((weather) => <option key={weather} value={weather}>{weather}</option>)}
+              </select>
+            </label>
+
+            <label className="filter-control">
+              <span>Time of day</span>
+              <select value={filters.time_period} onChange={(event) => updateFilter("time_period", event.target.value)}>
+                <option value="All">All time periods</option>
+                {filterOptions.time_periods.map((period) => <option key={period} value={period}>{period}</option>)}
+              </select>
+            </label>
+          </div>
+
+          <div className="filter-status" aria-live="polite">
+            {statsLoading ? "Updating dashboard…" : `${Number(statistics?.total_accidents ?? 0).toLocaleString()} matching accident records`}
+            {Object.values(filters).some((value) => value !== "All") && !statsLoading ? " • Filters applied" : ""}
+          </div>
+        </section>
+
         {/* ================= STATISTICS ================= */}
 
         <section className="stats-grid">
@@ -215,12 +291,8 @@ function App() {
 
             <small>
 
-              {statistics
-                ? (
-                    (statistics.fatal_accidents /
-                      statistics.total_accidents) *
-                    100
-                  ).toFixed(2)
+              {statistics && statistics.total_accidents > 0
+                ? safePercentage(statistics.fatal_accidents, statistics.total_accidents).toFixed(2)
                 : "0.00"}
               % of records
 
@@ -296,7 +368,7 @@ function App() {
 
 
               <span className="live-badge">
-                LIVE
+                HISTORICAL
               </span>
 
             </div>
@@ -306,6 +378,10 @@ function App() {
 
               <RiskMap
                 userLocation={userLocation}
+                city={filters.city}
+                severity={filters.severity}
+                weather={filters.weather}
+                timePeriod={filters.time_period}
               />
 
             </div>
@@ -501,9 +577,7 @@ function App() {
                       className="bar minor-bar"
                       style={{
                         width: `${
-                          (statistics.minor_accidents /
-                            statistics.total_accidents) *
-                          100
+                          safePercentage(statistics.minor_accidents, statistics.total_accidents)
                         }%`,
                       }}
                     ></div>
@@ -513,9 +587,7 @@ function App() {
                   <strong>
 
                     {(
-                      (statistics.minor_accidents /
-                        statistics.total_accidents) *
-                      100
+                      safePercentage(statistics.minor_accidents, statistics.total_accidents)
                     ).toFixed(1)}
                     %
 
@@ -536,9 +608,7 @@ function App() {
                       className="bar major-bar"
                       style={{
                         width: `${
-                          (statistics.major_accidents /
-                            statistics.total_accidents) *
-                          100
+                          safePercentage(statistics.major_accidents, statistics.total_accidents)
                         }%`,
                       }}
                     ></div>
@@ -548,9 +618,7 @@ function App() {
                   <strong>
 
                     {(
-                      (statistics.major_accidents /
-                        statistics.total_accidents) *
-                      100
+                      safePercentage(statistics.major_accidents, statistics.total_accidents)
                     ).toFixed(1)}
                     %
 
@@ -571,9 +639,7 @@ function App() {
                       className="bar fatal-bar"
                       style={{
                         width: `${
-                          (statistics.fatal_accidents /
-                            statistics.total_accidents) *
-                          100
+                          safePercentage(statistics.fatal_accidents, statistics.total_accidents)
                         }%`,
                       }}
                     ></div>
@@ -583,9 +649,7 @@ function App() {
                   <strong>
 
                     {(
-                      (statistics.fatal_accidents /
-                        statistics.total_accidents) *
-                      100
+                      safePercentage(statistics.fatal_accidents, statistics.total_accidents)
                     ).toFixed(1)}
                     %
 
@@ -723,10 +787,9 @@ function App() {
                 {Object.entries(analysis.causes).map(
                   ([cause, count]) => {
 
-                    const percentage =
-                      (count /
-                        statistics.total_accidents) *
-                      100;
+                    const percentage = statistics.total_accidents
+                      ? (count / statistics.total_accidents) * 100
+                      : 0;
 
                     return (
 
@@ -744,7 +807,7 @@ function App() {
                           <div
                             className="bar cause-bar"
                             style={{
-                              width: `${percentage}%`,
+                              width: `${Number.isFinite(percentage) ? Math.max(0, Math.min(100, percentage)) : 0}%`,
                             }}
                           ></div>
 
@@ -793,10 +856,9 @@ function App() {
                 {Object.entries(analysis.weather).map(
                   ([weather, count]) => {
 
-                    const percentage =
-                      (count /
-                        statistics.total_accidents) *
-                      100;
+                    const percentage = statistics.total_accidents
+                      ? (count / statistics.total_accidents) * 100
+                      : 0;
 
                     return (
 
@@ -814,7 +876,7 @@ function App() {
                           <div
                             className="bar weather-bar"
                             style={{
-                              width: `${percentage}%`,
+                              width: `${Number.isFinite(percentage) ? Math.max(0, Math.min(100, percentage)) : 0}%`,
                             }}
                           ></div>
 
@@ -838,6 +900,158 @@ function App() {
 
         </section>
 
+
+        {/* ================= ROAD TYPE + TRAFFIC DENSITY ================= */}
+
+        <section className="content-grid">
+          <div className="panel">
+            <div className="panel-header">
+              <div>
+                <h3>Road Type Analysis</h3>
+                <p>Accident records by road type</p>
+              </div>
+            </div>
+
+            {analysis && statistics && (
+              <div className="bar-chart">
+                {Object.entries(analysis.road_types || {}).map(
+                  ([roadType, count]) => {
+                    const percentage = statistics.total_accidents
+                      ? (count / statistics.total_accidents) * 100
+                      : 0;
+
+                    return (
+                      <div className="bar-row" key={roadType}>
+                        <span>{roadType}</span>
+                        <div className="bar-container">
+                          <div
+                            className="bar road-type-bar"
+                            style={{ width: `${percentage}%` }}
+                          ></div>
+                        </div>
+                        <strong>{percentage.toFixed(1)}%</strong>
+                      </div>
+                    );
+                  }
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="panel">
+            <div className="panel-header">
+              <div>
+                <h3>Traffic Density Analysis</h3>
+                <p>Accident records by traffic density</p>
+              </div>
+            </div>
+
+            {analysis && statistics && (
+              <div className="bar-chart">
+                {Object.entries(analysis.traffic_density || {}).map(
+                  ([density, count]) => {
+                    const percentage = statistics.total_accidents
+                      ? (count / statistics.total_accidents) * 100
+                      : 0;
+
+                    return (
+                      <div className="bar-row" key={density}>
+                        <span>{density}</span>
+                        <div className="bar-container">
+                          <div
+                            className="bar traffic-density-bar"
+                            style={{ width: `${percentage}%` }}
+                          ></div>
+                        </div>
+                        <strong>{percentage.toFixed(1)}%</strong>
+                      </div>
+                    );
+                  }
+                )}
+              </div>
+            )}
+          </div>
+        </section>
+
+
+        {/* ================= HOURLY + TIME-OF-DAY ANALYSIS ================= */}
+        <section className="content-grid">
+          <div className="panel">
+            <div className="panel-header">
+              <div>
+                <h3>Hourly Accident Distribution</h3>
+                <p>Historical accident records across the 24-hour day</p>
+              </div>
+            </div>
+
+            {analysis?.hourly && (
+              <div className="bar-chart">
+                {Object.entries(analysis.hourly)
+                  .sort(([hourA], [hourB]) => Number(hourA) - Number(hourB))
+                  .map(([hour, count]) => {
+                    const hourlyValues = Object.values(analysis.hourly).map(Number);
+                    const maxCount = Math.max(...hourlyValues, 1);
+                    const percentage = (Number(count) / maxCount) * 100;
+
+                    return (
+                      <div className="bar-row" key={hour}>
+                        <span>{String(hour).padStart(2, "0")}:00</span>
+                        <div className="bar-container">
+                          <div
+                            className="bar hourly-bar"
+                            style={{
+                              width: `${Number.isFinite(percentage) ? Math.max(0, Math.min(100, percentage)) : 0}%`,
+                              background: "#8b5cf6"
+                            }}
+                          />
+                        </div>
+                        <strong>{Number(count).toLocaleString()}</strong>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+          </div>
+
+          <div className="panel">
+            <div className="panel-header">
+              <div>
+                <h3>Time-of-Day Analysis</h3>
+                <p>Historical accident records by time period</p>
+              </div>
+            </div>
+
+            {analysis?.time_period && (
+              <div className="bar-chart">
+                {["Morning", "Afternoon", "Evening", "Night"].map((period) => {
+                  const count = Number(analysis.time_period[period] ?? 0);
+                  const values = Object.values(analysis.time_period).map(Number);
+                  const maxCount = Math.max(...values, 1);
+                  const percentage = statistics?.total_accidents
+                    ? (count / statistics.total_accidents) * 100
+                    : 0;
+                  const barWidth = (count / maxCount) * 100;
+
+                  return (
+                    <div className="bar-row" key={period}>
+                      <span>{period}</span>
+                      <div className="bar-container">
+                        <div
+                          className="bar time-period-bar"
+                          style={{
+                            width: `${Number.isFinite(barWidth) ? Math.max(0, Math.min(100, barWidth)) : 0}%`,
+                            background: "#14b8a6"
+                          }}
+                        />
+                      </div>
+                      <strong>{percentage.toFixed(1)}%</strong>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </section>
 
         <footer>
 
