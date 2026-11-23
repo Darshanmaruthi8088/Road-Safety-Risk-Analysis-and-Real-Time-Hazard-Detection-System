@@ -1,0 +1,152 @@
+{
+  "dataset_path": "C:\\Users\\dd708\\OneDrive\\Documents\\aa5th sem notes\\DEV\\DEV Filtration\\Data\\indian_roads_cleaned.csv",
+  "target_column": "accident_severity",
+  "class_labels": [
+    "minor",
+    "major",
+    "fatal"
+  ],
+  "date_column": "date",
+  "historical_window": "2022-01-01 through 2024-12-31",
+  "future_holdout_used": false,
+  "folds": [
+    {
+      "fold": "train_2022_validate_2023",
+      "train_start": "2022-01-01",
+      "train_end_inclusive": "2022-12-31",
+      "validation_start": "2023-01-01",
+      "validation_end_inclusive": "2023-12-31",
+      "train_rows": 6117,
+      "validation_rows": 6088,
+      "train_class_distribution": {
+        "minor": 3315,
+        "major": 1893,
+        "fatal": 909
+      },
+      "validation_class_distribution": {
+        "minor": 3386,
+        "major": 1811,
+        "fatal": 891
+      }
+    },
+    {
+      "fold": "train_2022_2023_validate_2024",
+      "train_start": "2022-01-01",
+      "train_end_inclusive": "2023-12-31",
+      "validation_start": "2024-01-01",
+      "validation_end_inclusive": "2024-12-31",
+      "train_rows": 12205,
+      "validation_rows": 6061,
+      "train_class_distribution": {
+        "minor": 6701,
+        "major": 3704,
+        "fatal": 1800
+      },
+      "validation_class_distribution": {
+        "minor": 3341,
+        "major": 1795,
+        "fatal": 925
+      }
+    }
+  ],
+  "historical_data_audit": {
+    "historical_rows_after_date_and_label_filter": 18266,
+    "historical_invalid_label_rows_excluded": 0,
+    "historical_date_min": "2022-01-01",
+    "historical_date_max": "2024-12-31",
+    "historical_target_distribution": {
+      "minor": 10042,
+      "major": 5499,
+      "fatal": 2725
+    }
+  },
+  "feature_columns": [
+    "road_type",
+    "weather",
+    "visibility",
+    "traffic_density",
+    "festival",
+    "lanes",
+    "traffic_signal",
+    "temperature",
+    "hour",
+    "is_weekend",
+    "is_peak_hour"
+  ],
+  "categorical_features": [
+    "road_type",
+    "weather",
+    "visibility",
+    "traffic_density",
+    "festival"
+  ],
+  "numeric_features": [
+    "lanes",
+    "traffic_signal",
+    "temperature",
+    "hour",
+    "is_weekend",
+    "is_peak_hour"
+  ],
+  "preprocessing": {
+    "categorical": "most-frequent imputation then one-hot encoding; unknown categories ignored",
+    "numeric": "median imputation then standard scaling",
+    "fit_scope": "inside each candidate pipeline, on that fold's training rows only"
+  },
+  "candidates": [
+    {
+      "name": "Majority baseline",
+      "estimator": "DummyClassifier",
+      "parameters": {
+        "strategy": "most_frequent"
+      }
+    },
+    {
+      "name": "Logistic Regression (unweighted)",
+      "estimator": "LogisticRegression",
+      "parameters": {
+        "max_iter": 1000,
+        "class_weight": null,
+        "random_state": 42
+      }
+    },
+    {
+      "name": "Logistic Regression (balanced)",
+      "estimator": "LogisticRegression",
+      "parameters": {
+        "max_iter": 1000,
+        "class_weight": "balanced",
+        "random_state": 42
+      }
+    },
+    {
+      "name": "Random Forest (unweighted)",
+      "estimator": "RandomForestClassifier",
+      "parameters": {
+        "n_estimators": 100,
+        "max_depth": 12,
+        "min_samples_leaf": 3,
+        "class_weight": null,
+        "random_state": 42,
+        "n_jobs": -1
+      }
+    },
+    {
+      "name": "Random Forest (balanced_subsample)",
+      "estimator": "RandomForestClassifier",
+      "parameters": {
+        "n_estimators": 100,
+        "max_depth": 12,
+        "min_samples_leaf": 3,
+        "class_weight": "balanced_subsample",
+        "random_state": 42,
+        "n_jobs": -1
+      }
+    }
+  ],
+  "probability_threshold_tuning": "not performed",
+  "random_state": 42,
+  "python_version": "3.14.3",
+  "pandas_version": "3.0.6",
+  "scikit_learn_version": "1.9.1"
+}

@@ -1,0 +1,31 @@
+fold,model,class,precision,recall,f1,support
+train_2022_validate_2023,Majority baseline,minor,0.5561760840998686,1.0,0.7147983956090352,3386
+train_2022_validate_2023,Majority baseline,major,0.0,0.0,0.0,1811
+train_2022_validate_2023,Majority baseline,fatal,0.0,0.0,0.0,891
+train_2022_validate_2023,Logistic Regression (unweighted),minor,0.5561760840998686,1.0,0.7147983956090352,3386
+train_2022_validate_2023,Logistic Regression (unweighted),major,0.0,0.0,0.0,1811
+train_2022_validate_2023,Logistic Regression (unweighted),fatal,0.0,0.0,0.0,891
+train_2022_validate_2023,Logistic Regression (balanced),minor,0.5513595166163142,0.3233904311872416,0.4076693968726731,3386
+train_2022_validate_2023,Logistic Regression (balanced),major,0.30054917623564653,0.3324130314743236,0.3156790770844258,1811
+train_2022_validate_2023,Logistic Regression (balanced),fatal,0.1376846117198666,0.32435465768799104,0.19331103678929765,891
+train_2022_validate_2023,Random Forest (unweighted),minor,0.558547387068202,0.9311872415829888,0.6982615435721404,3386
+train_2022_validate_2023,Random Forest (unweighted),major,0.33712984054669703,0.08172280508006627,0.13155555555555556,1811
+train_2022_validate_2023,Random Forest (unweighted),fatal,0.25,0.001122334455667789,0.0022346368715083797,891
+train_2022_validate_2023,Random Forest (balanced_subsample),minor,0.5618655692729767,0.6048434731246308,0.5825629355710426,3386
+train_2022_validate_2023,Random Forest (balanced_subsample),major,0.3158488437676255,0.30922142462727775,0.3125,1811
+train_2022_validate_2023,Random Forest (balanced_subsample),fatal,0.13134328358208955,0.09876543209876543,0.11274823830877642,891
+train_2022_2023_validate_2024,Majority baseline,minor,0.5512291701039432,1.0,0.7106998510955116,3341
+train_2022_2023_validate_2024,Majority baseline,major,0.0,0.0,0.0,1795
+train_2022_2023_validate_2024,Majority baseline,fatal,0.0,0.0,0.0,925
+train_2022_2023_validate_2024,Logistic Regression (unweighted),minor,0.5512630014858841,0.9994013768332835,0.7105767184507342,3341
+train_2022_2023_validate_2024,Logistic Regression (unweighted),major,0.25,0.0005571030640668524,0.0011117287381878821,1795
+train_2022_2023_validate_2024,Logistic Regression (unweighted),fatal,0.0,0.0,0.0,925
+train_2022_2023_validate_2024,Logistic Regression (balanced),minor,0.5392210641799232,0.2942232864411853,0.3807126258714175,3341
+train_2022_2023_validate_2024,Logistic Regression (balanced),major,0.28310276679841895,0.3192200557103064,0.30007855459544386,1795
+train_2022_2023_validate_2024,Logistic Regression (balanced),fatal,0.14408310749774164,0.34486486486486484,0.2032494424976107,925
+train_2022_2023_validate_2024,Random Forest (unweighted),minor,0.548910288900152,0.9724633343310386,0.7017278617710583,3341
+train_2022_2023_validate_2024,Random Forest (unweighted),major,0.2127659574468085,0.016713091922005572,0.030991735537190084,1795
+train_2022_2023_validate_2024,Random Forest (unweighted),fatal,0.0,0.0,0.0,925
+train_2022_2023_validate_2024,Random Forest (balanced_subsample),minor,0.5461265523358959,0.5528284944627357,0.549457087609698,3341
+train_2022_2023_validate_2024,Random Forest (balanced_subsample),major,0.284877529286475,0.298050139275766,0.2913150013612851,1795
+train_2022_2023_validate_2024,Random Forest (balanced_subsample),fatal,0.1585518102372035,0.1372972972972973,0.14716106604866744,925
