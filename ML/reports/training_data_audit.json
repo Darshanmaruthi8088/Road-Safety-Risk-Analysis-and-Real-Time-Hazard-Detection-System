@@ -117,6 +117,7 @@
     "is_peak_hour": "int64"
   },
   "random_state": 42,
+<<<<<<< HEAD
   "selected_by": "highest 2024 validation macro-F1; no 2025 data used",
   "target_class_distribution_all_valid_labels": {
     "minor": 11025,
@@ -151,4 +152,7 @@
   },
   "dataset_duplicate_rows": 0,
   "dataset_duplicate_accident_ids": 0
+=======
+  "selected_by": "highest 2024 validation macro-F1; no 2025 data used"
+>>>>>>> 383f80c06fc073766380912f274f0db73d3b64c4
 }

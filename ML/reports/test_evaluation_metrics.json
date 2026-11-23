@@ -43,6 +43,7 @@
   "pipeline_saved_at": "C:\\Users\\dd708\\OneDrive\\Documents\\aa5th sem notes\\DEV\\DEV Filtration\\ML\\model_artifacts\\severity_pipeline.joblib",
   "scikit_learn_version": "1.9.1",
   "preprocessing_fit_period": "2022-01-01 through 2023-12-31",
+<<<<<<< HEAD
   "preprocessing_fit_rows": 12205,
   "dataset_columns": 24,
   "dataset_target_class_distribution": {
@@ -79,4 +80,7 @@
   "dataset_missing_value_count": 0,
   "dataset_duplicate_rows": 0,
   "dataset_duplicate_accident_ids": 0
+=======
+  "preprocessing_fit_rows": 12205
+>>>>>>> 383f80c06fc073766380912f274f0db73d3b64c4
 }
