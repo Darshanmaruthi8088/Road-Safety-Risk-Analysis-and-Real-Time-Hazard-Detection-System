@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import "./App.css";
 import RiskMap from "./RiskMap";
+import { API_BASE_URL } from "./api";
 
 const safePercentage = (value, total) => {
   const numerator = Number(value);
@@ -43,7 +44,7 @@ function App() {
     });
 
     setStatsLoading(true);
-    fetch(`http://127.0.0.1:8000/filtered-dashboard?${params.toString()}`, {
+    fetch(`${API_BASE_URL}/filtered-dashboard?${params.toString()}`, {
       signal: controller.signal,
     })
       .then((response) => {
@@ -98,7 +99,7 @@ function App() {
 
         try {
           const response = await fetch(
-            `http://127.0.0.1:8000/risk?latitude=${lat}&longitude=${lon}`
+            `${API_BASE_URL}/risk?latitude=${lat}&longitude=${lon}`
           );
 
           if (!response.ok) {
@@ -304,7 +305,7 @@ function App() {
           <div className="stat-card">
 
             <span>
-              Risk Zones
+              Severity Hotspots
             </span>
 
             <strong>
@@ -316,7 +317,7 @@ function App() {
             </strong>
 
             <small>
-              Geographical zones
+              Approximate coordinate cells
             </small>
 
           </div>
@@ -337,7 +338,7 @@ function App() {
             </strong>
 
             <small>
-              Highest risk category
+              Highest severity-index band
             </small>
 
           </div>
@@ -361,7 +362,7 @@ function App() {
                 </h3>
 
                 <p>
-                  Historical accident risk distribution
+                  Recorded accidents grouped by location and severity
                 </p>
 
               </div>
@@ -421,11 +422,11 @@ function App() {
               <div>
 
                 <h3>
-                  Current Risk
+                  Nearest Hotspot Summary
                 </h3>
 
                 <p>
-                  Your current location
+                  Closest recorded coordinate cell
                 </p>
 
               </div>
@@ -444,20 +445,19 @@ function App() {
                   </strong>
 
                   <span>
-                    Risk Score
+                    Severity Index
                   </span>
 
                 </div>
 
 
                 <h2>
-                  {riskData.risk_level} Risk
+                  {riskData.risk_level} Severity Index
                 </h2>
 
 
                 <p>
-                  Historical accident risk detected near
-                  your current location.
+                  Severity-weighted summary for the nearest recorded accident cell.
                 </p>
 
 
@@ -498,7 +498,7 @@ function App() {
                   </strong>
 
                   <span>
-                    Risk Score
+                    Severity Index
                   </span>
 
                 </div>
@@ -510,8 +510,7 @@ function App() {
 
 
                 <p>
-                  Allow location access to determine
-                  the historical accident risk near you.
+                  Allow location access to view the nearest recorded accident cell.
                 </p>
 
 
@@ -671,11 +670,11 @@ function App() {
               <div>
 
                 <h3>
-                  Risk Zone Summary
+                  Severity Hotspot Summary
                 </h3>
 
                 <p>
-                  Geographic classification
+                  Approximate 0.1-degree cells by severity mix
                 </p>
 
               </div>

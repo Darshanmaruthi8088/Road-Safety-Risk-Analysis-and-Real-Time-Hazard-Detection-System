@@ -1,0 +1,18 @@
+RoadSafe selected dataset quality audit
+File: C:\Users\dd708\OneDrive\Documents\aa5th sem notes\DEV\DEV Filtration\Data\indian_roads_project_selected.csv
+Rows: 20,000
+Columns: 11
+
+Checks:
+PASS - Expected 11-column schema: found 11 columns: ['date', 'city', 'latitude', 'longitude', 'hour', 'road_type', 'weather', 'traffic_density', 'cause', 'casualties', 'accident_severity']
+PASS - Dataset has records: 20,000 rows
+PASS - No missing cells: 0 missing cells
+PASS - No blank category values: 0 blank values
+PASS - No duplicate selected rows: 0 duplicates
+PASS - ISO dates parse correctly: 0 invalid; range 2022-01-01 to 2025-04-15
+PASS - Hours are whole numbers from 0 to 23: 0 invalid hours
+PASS - Coordinates are within the checked India bounds: 0 invalid coordinate pairs
+PASS - Casualties are non-negative whole numbers: 0 invalid values
+PASS - Severity labels are valid: valid labels: minor, major, fatal
+
+Overall: PASS

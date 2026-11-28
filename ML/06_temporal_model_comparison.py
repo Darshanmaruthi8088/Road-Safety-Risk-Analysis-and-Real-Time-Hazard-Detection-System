@@ -3,7 +3,7 @@
 Only records dated 2022-01-01 through 2024-12-31 are eligible. The folds are
 2022 -> 2023 and 2022-2023 -> 2024. This script does not inspect 2025 labels or
 features for scoring, fitting, preprocessing, model selection, or thresholds.
-It writes only to ML/reports/temporal_comparison/ and never saves a model.
+It writes only to ML/reports/temporal_comparison_selected/ and never saves a model.
 """
 
 from __future__ import annotations
@@ -30,8 +30,10 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
-DATA_PATH = ROOT_DIR / "Data" / "indian_roads_cleaned.csv"
-OUTPUT_DIR = Path(__file__).resolve().parent / "reports" / "temporal_comparison"
+DATA_PATH = ROOT_DIR / "Data" / "indian_roads_project_selected.csv"
+OUTPUT_DIR = (
+    Path(__file__).resolve().parent / "reports" / "temporal_comparison_selected"
+)
 
 DATE_COLUMN = "date"
 TARGET_COLUMN = "accident_severity"
@@ -39,17 +41,10 @@ LABELS = ["minor", "major", "fatal"]
 CATEGORICAL_FEATURES = [
     "road_type",
     "weather",
-    "visibility",
     "traffic_density",
-    "festival",
 ]
 NUMERIC_FEATURES = [
-    "lanes",
-    "traffic_signal",
-    "temperature",
     "hour",
-    "is_weekend",
-    "is_peak_hour",
 ]
 FEATURES = CATEGORICAL_FEATURES + NUMERIC_FEATURES
 RANDOM_STATE = 42
@@ -330,11 +325,11 @@ def _write_readme(
 
 ## Protocol
 
-- Dataset: `Data/indian_roads_cleaned.csv`; only valid labeled rows dated 2022-01-01 through 2024-12-31 were eligible ({audit['historical_rows_after_date_and_label_filter']} rows; {audit['historical_invalid_label_rows_excluded']} invalid-label rows excluded within that date window).
+- Dataset: `Data/indian_roads_project_selected.csv`; only valid labeled rows dated 2022-01-01 through 2024-12-31 were eligible ({audit['historical_rows_after_date_and_label_filter']} rows; {audit['historical_invalid_label_rows_excluded']} invalid-label rows excluded within that date window).
 - Fold 1: train on 2022; validate on 2023.
 - Fold 2: train on 2022-2023; validate on 2024.
 - The January-April 2025 holdout was not used for fitting, preprocessing, scoring, candidate selection, or threshold tuning.
-- All candidates use the same 11 features and a fresh preprocessing pipeline fitted only on that fold's training rows: median imputation and standard scaling for numeric columns; most-frequent imputation and one-hot encoding with unknown categories ignored for categorical columns.
+- All candidates use the four requested predictors (`road_type`, `weather`, `traffic_density`, and `hour`) and a fresh preprocessing pipeline fitted only on that fold's training rows: median imputation and standard scaling for `hour`; most-frequent imputation and one-hot encoding with unknown categories ignored for the categorical columns. `date` is used only to establish chronology; `cause` and `casualties` are excluded because they describe the recorded accident outcome.
 - Class weighting is compared within logistic regression (none vs `balanced`) and random forest (none vs `balanced_subsample`). The forest settings are fixed at 100 trees, depth 12, and minimum leaf size 3. No hyperparameter search was run.
 - No probability thresholds were tuned; predictions use each classifier's default `predict` decision. Fit and prediction durations are measured separately for every fold and candidate.
 - Per-fold accuracy, macro-F1, weighted-F1, fatal precision/recall, per-class results, and confusion counts are recorded below and in the accompanying CSV files. Summary means give the two validation years equal weight; standard deviations are also saved in `summary.csv`.

@@ -1,16 +1,16 @@
 {
   "selected_model": "Random Forest",
   "selected_validation_metrics": {
-    "accuracy": 0.41214321069130505,
-    "macro_precision": 0.3281340858267236,
-    "macro_recall": 0.32769298775129935,
-    "macro_f1": 0.32763180504193756,
-    "weighted_precision": 0.4078785343452228,
-    "weighted_recall": 0.41214321069130505,
-    "weighted_f1": 0.40985512319393635
+    "accuracy": 0.343672661277017,
+    "macro_precision": 0.3386908243177719,
+    "macro_recall": 0.3391507577441267,
+    "macro_f1": 0.3207606496862942,
+    "weighted_precision": 0.4199817822941233,
+    "weighted_recall": 0.343672661277017,
+    "weighted_f1": 0.3631475685352875
   },
-  "selected_training_seconds": 1.3621812000055797,
-  "selected_validation_predict_seconds": 0.1595171999942977,
+  "selected_training_seconds": 0.39997969998512417,
+  "selected_validation_predict_seconds": 0.061349499970674515,
   "baseline_class": "minor",
   "baseline_validation_metrics": {
     "accuracy": 0.5512291701039432,
@@ -24,30 +24,16 @@
   "feature_columns": [
     "road_type",
     "weather",
-    "visibility",
     "traffic_density",
-    "festival",
-    "lanes",
-    "traffic_signal",
-    "temperature",
-    "hour",
-    "is_weekend",
-    "is_peak_hour"
+    "hour"
   ],
   "categorical_features": [
     "road_type",
     "weather",
-    "visibility",
-    "traffic_density",
-    "festival"
+    "traffic_density"
   ],
   "numeric_features": [
-    "lanes",
-    "traffic_signal",
-    "temperature",
-    "hour",
-    "is_weekend",
-    "is_peak_hour"
+    "hour"
   ],
   "target_column": "accident_severity",
   "date_column": "date",
@@ -78,5 +64,5 @@
   "preprocessing_fit_rows": 12205,
   "preprocessing_fit_period": "2022-01-01 through 2023-12-31",
   "scikit_learn_version": "1.9.1",
-  "dataset_path": "C:\\Users\\dd708\\OneDrive\\Documents\\aa5th sem notes\\DEV\\DEV Filtration\\Data\\indian_roads_cleaned.csv"
+  "dataset_path": "C:\\Users\\dd708\\OneDrive\\Documents\\aa5th sem notes\\DEV\\DEV Filtration\\Data\\indian_roads_project_selected.csv"
 }

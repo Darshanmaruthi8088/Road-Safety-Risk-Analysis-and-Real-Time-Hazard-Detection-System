@@ -18,7 +18,7 @@ from sklearn.metrics import (
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
-DATA_PATH = ROOT_DIR / "Data" / "indian_roads_cleaned.csv"
+DATA_PATH = ROOT_DIR / "Data" / "indian_roads_project_selected.csv"
 ARTIFACT_DIR = Path(__file__).resolve().parent / "model_artifacts"
 REPORT_DIR = Path(__file__).resolve().parent / "reports"
 MODEL_PATH = ARTIFACT_DIR / "severity_pipeline.joblib"
@@ -35,17 +35,10 @@ LABELS = ["minor", "major", "fatal"]
 CATEGORICAL_FEATURES = [
     "road_type",
     "weather",
-    "visibility",
     "traffic_density",
-    "festival",
 ]
 NUMERIC_FEATURES = [
-    "lanes",
-    "traffic_signal",
-    "temperature",
     "hour",
-    "is_weekend",
-    "is_peak_hour",
 ]
 FEATURES = CATEGORICAL_FEATURES + NUMERIC_FEATURES
 TEST_START = pd.Timestamp("2025-01-01")
@@ -207,11 +200,7 @@ def main() -> None:
         column: int(df[column].isna().sum()) for column in df.columns
     }
     duplicate_rows = int(df.duplicated().sum())
-    duplicate_accident_ids = (
-        int(df["accident_id"].duplicated().sum())
-        if "accident_id" in df.columns
-        else None
-    )
+    duplicate_accident_ids = None
 
     ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
@@ -329,7 +318,7 @@ def main() -> None:
 ## Evaluation design
 
 - Dataset: {len(df)} rows by {len(df.columns)} columns. Valid target-class distribution across the source file: `{json.dumps(all_target_counts, sort_keys=True)}`.
-- Data quality check: {sum(missing_values_by_column.values())} missing cells, {duplicate_rows} duplicate rows, and {duplicate_accident_ids} duplicate accident IDs.
+- Data quality check: {sum(missing_values_by_column.values())} missing cells and {duplicate_rows} duplicate rows. Accident IDs are not part of this selected schema, so duplicate IDs cannot be checked here.
 - Selected model: **{metadata['selected_model']}**, chosen using 2024 validation macro-F1 ({metadata['selected_validation_metrics']['macro_f1']:.4f}).
 - Holdout: {results['test_period']} ({results['test_rows']} rows), evaluated once after model selection.
 - Training and preprocessing fit period: {metadata['preprocessing_fit_period']} ({metadata['preprocessing_fit_rows']} rows). The saved pipeline is loaded and used for prediction; this script does not fit or tune it.
@@ -361,7 +350,7 @@ Evaluation elapsed time: selected pipeline {pipeline_evaluation_seconds:.6f} sec
 
 These metrics describe a held-out slice of the supplied CSV only. The repository does not document the dataset's source or establish that its rows are verified real-world accident observations. The model predicts severity conditional on an accident record; it does not predict whether an accident will happen or detect accidents in real time. The Jan-Apr 2025 holdout is relatively short and cannot establish performance in other years, locations, or operating conditions.
 
-The classes are imbalanced, with minor accidents making up the largest share. The majority baseline has higher accuracy than the selected model, while the selected model has higher macro-F1; accuracy alone therefore hides weak performance on major and fatal cases. Test fatal-class recall is especially low, so this model should not be used as an operational safety decision system.
+The classes are imbalanced, with minor accidents making up the largest share. Accuracy should be read together with macro-F1 and the per-class metrics. On the holdout, fatal-class precision is {pipeline_report[2]['precision']:.4f}, recall is {pipeline_report[2]['recall']:.4f}, and F1 is {pipeline_report[2]['f1_score']:.4f} (support: {pipeline_report[2]['support']}). This measures classification on this CSV only and is not evidence of operational road-safety performance.
 
 ## Outputs
 

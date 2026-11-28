@@ -26,7 +26,7 @@ from sklearn.tree import DecisionTreeClassifier
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
-DATA_PATH = ROOT_DIR / "Data" / "indian_roads_cleaned.csv"
+DATA_PATH = ROOT_DIR / "Data" / "indian_roads_project_selected.csv"
 ARTIFACT_DIR = Path(__file__).resolve().parent / "model_artifacts"
 REPORT_DIR = Path(__file__).resolve().parent / "reports"
 MODEL_PATH = ARTIFACT_DIR / "severity_pipeline.joblib"
@@ -41,17 +41,10 @@ LABELS = ["minor", "major", "fatal"]
 CATEGORICAL_FEATURES = [
     "road_type",
     "weather",
-    "visibility",
     "traffic_density",
-    "festival",
 ]
 NUMERIC_FEATURES = [
-    "lanes",
-    "traffic_signal",
-    "temperature",
     "hour",
-    "is_weekend",
-    "is_peak_hour",
 ]
 FEATURES = CATEGORICAL_FEATURES + NUMERIC_FEATURES
 RANDOM_STATE = 42
@@ -182,11 +175,7 @@ def _load_and_audit() -> tuple[pd.DataFrame, pd.Series, pd.DataFrame, pd.Series,
             column: int(df[column].isna().sum()) for column in df.columns
         },
         "dataset_duplicate_rows": int(df.duplicated().sum()),
-        "dataset_duplicate_accident_ids": (
-            int(df["accident_id"].duplicated().sum())
-            if "accident_id" in df.columns
-            else None
-        ),
+        "dataset_duplicate_accident_ids": None,
         "date_column": DATE_COLUMN,
         "date_source_dtype": str(df[DATE_COLUMN].dtype),
         "date_parse_method": "pandas.to_datetime(errors='coerce')",
@@ -430,7 +419,7 @@ def main() -> None:
 
 - Dataset: `{DATA_PATH}` ({audit['dataset_rows']} rows, {audit['dataset_columns']} columns).
 - Valid target-class distribution across the source file: `{json.dumps(audit['target_class_distribution_all_valid_labels'], sort_keys=True)}`.
-- Data quality check: {sum(audit['dataset_missing_values_by_column'].values())} missing cells across all columns; {audit['dataset_duplicate_rows']} duplicate rows; {audit['dataset_duplicate_accident_ids']} duplicate accident IDs.
+- Data quality check: {sum(audit['dataset_missing_values_by_column'].values())} missing cells across all columns; {audit['dataset_duplicate_rows']} duplicate rows. Accident IDs are not part of this selected schema, so duplicate IDs cannot be checked here.
 - Date column: `{DATE_COLUMN}`; parsed with `{audit['date_parse_method']}`. Parse failures: {audit['date_parse_failures']}.
 - Target: `{TARGET_COLUMN}`; accepted labels: {', '.join(LABELS)}.
 - Train: {audit['train_period']} ({audit['rows_in_train_period']} rows).
@@ -449,7 +438,7 @@ def main() -> None:
 
 Used features: {', '.join(f'`{feature}`' for feature in FEATURES)}.
 
-Excluded fields: `accident_severity` is the target; `casualties` and `risk_score` are post-event/outcome proxies; `cause` and `vehicles_involved` may only be known during or after an incident; `accident_id` is an identifier; city/state/coordinates may encourage geographic memorization; date/time are used only to establish chronology. No fatalities column exists in this selected dataset. These results classify severity among recorded accidents and do not estimate whether an accident will occur.
+Excluded fields: `accident_severity` is the target; `cause` and `casualties` describe the accident outcome and are deliberately excluded; `city` and coordinates are excluded to avoid geographic memorization; `date` is used only to create the chronological splits. The model classifies severity among recorded accidents and does not estimate whether an accident will occur.
 
 ## 2024 validation comparison
 

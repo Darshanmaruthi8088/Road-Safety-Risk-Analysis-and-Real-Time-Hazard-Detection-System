@@ -1,76 +1,72 @@
-from pathlib import Path
+"""Filtered dashboard and geographic hotspot endpoints for the selected CSV."""
+
 from functools import lru_cache
+from pathlib import Path
 
 import pandas as pd
 from fastapi import APIRouter, Query
 
 router = APIRouter(tags=["Dashboard Filters"])
 
-
-def _find_dataset() -> Path:
-    """Find the cleaned RoadSafe accident CSV in common project locations."""
-    backend_dir = Path(__file__).resolve().parent
-    candidates = [
-        backend_dir.parent / "data" / "indian_roads_cleaned.csv",
-        backend_dir / "data" / "indian_roads_cleaned.csv",
-        backend_dir.parent / "indian_roads_cleaned.csv",
-        Path.cwd().parent / "data" / "indian_roads_cleaned.csv",
-        Path.cwd() / "data" / "indian_roads_cleaned.csv",
-    ]
-
-    for candidate in candidates:
-        if candidate.exists():
-            return candidate
-
-    raise FileNotFoundError(
-        "Could not find indian_roads_cleaned.csv. Put it in the project's "
-        "data folder: data/indian_roads_cleaned.csv"
-    )
+DATASET_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "Data"
+    / "indian_roads_project_selected.csv"
+)
+REQUIRED_COLUMNS = {
+    "date",
+    "city",
+    "latitude",
+    "longitude",
+    "hour",
+    "road_type",
+    "weather",
+    "traffic_density",
+    "cause",
+    "casualties",
+    "accident_severity",
+}
+SEVERITY_WEIGHT = {"minor": 1, "major": 2, "fatal": 3}
+GRID_DECIMALS = 1
 
 
 @lru_cache(maxsize=1)
 def _load_data() -> pd.DataFrame:
-    """Load and lightly normalize the dataset once per server process."""
-    df = pd.read_csv(_find_dataset())
+    """Load the project's selected dataset once per backend process."""
+    if not DATASET_PATH.is_file():
+        raise FileNotFoundError(f"Selected dataset not found: {DATASET_PATH}")
 
-    required = {
-        "city",
-        "accident_severity",
-        "weather",
-        "hour",
-        "latitude",
-        "longitude",
-        "risk_score",
-        "cause",
-        "road_type",
-        "traffic_density",
-    }
-    missing = required.difference(df.columns)
+    df = pd.read_csv(DATASET_PATH)
+    missing = REQUIRED_COLUMNS.difference(df.columns)
     if missing:
         raise ValueError(
-            f"Dataset is missing required columns: {', '.join(sorted(missing))}"
+            "Selected dataset is missing required columns: "
+            + ", ".join(sorted(missing))
         )
 
-    # Normalize text columns so filters and counts use consistent labels.
-    text_columns = [
+    for column in [
         "city",
         "accident_severity",
         "weather",
         "cause",
         "road_type",
         "traffic_density",
-    ]
-    for column in text_columns:
-        df[column] = df[column].fillna("Unknown").astype(str).str.strip()
+    ]:
+        df[column] = (
+            df[column]
+            .fillna("Unknown")
+            .astype(str)
+            .str.strip()
+            .replace("", "Unknown")
+        )
 
-    # Keep severity labels consistent (minor / major / fatal).
-    df["accident_severity"] = df["accident_severity"].str.lower()
+    for column in ["accident_severity", "weather", "cause", "road_type", "traffic_density"]:
+        df[column] = df[column].str.lower()
 
-    df["hour"] = pd.to_numeric(df["hour"], errors="coerce")
-    df["latitude"] = pd.to_numeric(df["latitude"], errors="coerce")
-    df["longitude"] = pd.to_numeric(df["longitude"], errors="coerce")
-    df["risk_score"] = pd.to_numeric(df["risk_score"], errors="coerce").fillna(0)
+    for column in ["hour", "latitude", "longitude", "casualties"]:
+        df[column] = pd.to_numeric(df[column], errors="coerce")
 
+    df["casualties"] = df["casualties"].fillna(0).clip(lower=0)
     return df
 
 
@@ -89,65 +85,82 @@ def _period(hour):
     return "Night"
 
 
-def _counts(series):
-    """Return stable JSON-safe category counts."""
+def _counts(series: pd.Series) -> dict[str, int]:
     clean = series.fillna("Unknown").astype(str)
-    return {
-        str(key): int(value)
-        for key, value in clean.value_counts().sort_index().items()
-    }
+    return {str(key): int(value) for key, value in clean.value_counts().sort_index().items()}
 
 
-def _summarize(df: pd.DataFrame):
+def _risk_level(score: float) -> str:
+    if score < 0.4:
+        return "Low"
+    if score < 0.6:
+        return "Moderate"
+    if score < 0.8:
+        return "High"
+    return "Critical"
+
+
+def _hotspots(df: pd.DataFrame) -> list[dict]:
+    """Aggregate approximate 0.1-degree cells using location and severity.
+
+    The severity index is the mean class weight (minor=1, major=2, fatal=3),
+    normalized to 0..1. It describes recorded severity mix, not exposure-adjusted
+    real-world crash risk.
+    """
+    zones = df.dropna(subset=["latitude", "longitude"]).copy()
+    zones = zones[
+        zones["latitude"].between(-90, 90)
+        & zones["longitude"].between(-180, 180)
+        & zones["accident_severity"].isin(SEVERITY_WEIGHT)
+    ]
+    if zones.empty:
+        return []
+
+    zones["lat_grid"] = zones["latitude"].round(GRID_DECIMALS)
+    zones["lon_grid"] = zones["longitude"].round(GRID_DECIMALS)
+    zones["severity_weight"] = zones["accident_severity"].map(SEVERITY_WEIGHT)
+    output = []
+
+    for (latitude, longitude), group in zones.groupby(
+        ["lat_grid", "lon_grid"], sort=True
+    ):
+        counts = group["accident_severity"].value_counts()
+        weighted_total = int(group["severity_weight"].sum())
+        average_weight = weighted_total / len(group)
+        score = average_weight / max(SEVERITY_WEIGHT.values())
+        output.append(
+            {
+                "latitude": float(latitude),
+                "longitude": float(longitude),
+                "accident_count": int(len(group)),
+                "minor_count": int(counts.get("minor", 0)),
+                "major_count": int(counts.get("major", 0)),
+                "fatal_count": int(counts.get("fatal", 0)),
+                "total_casualties": int(group["casualties"].sum()),
+                "severity_weighted_score": weighted_total,
+                "average_severity_weight": round(float(average_weight), 3),
+                "risk_score": round(float(score), 3),
+                "risk_level": _risk_level(score),
+            }
+        )
+
+    return output
+
+
+def _summarize(df: pd.DataFrame) -> tuple[dict, dict]:
     total = int(len(df))
-
-    severity = df["accident_severity"].fillna("Unknown").astype(str).str.lower()
-    severity_counts = severity.value_counts()
-
-    # Include every severity field expected by the React dashboard.
+    severity_counts = df["accident_severity"].value_counts()
     minor = int(severity_counts.get("minor", 0))
     major = int(severity_counts.get("major", 0))
     fatal = int(severity_counts.get("fatal", 0))
+    hotspots = _hotspots(df)
+    risk_counts = pd.Series(
+        [zone["risk_level"].lower() for zone in hotspots], dtype="string"
+    ).value_counts()
 
-    # Estimate geographic zones from rounded coordinates in the filtered data.
-    # These are approximate dataset-derived zones, not verified real-world hotspots.
-    valid_coordinates = df.dropna(subset=["latitude", "longitude"]).copy()
-
-    if not valid_coordinates.empty:
-        valid_coordinates["lat_cell"] = valid_coordinates["latitude"].round(1)
-        valid_coordinates["lon_cell"] = valid_coordinates["longitude"].round(1)
-
-        zone_scores = valid_coordinates.groupby(
-            ["lat_cell", "lon_cell"]
-        )["risk_score"].mean()
-
-        risk_levels = {
-            "low": int((zone_scores < 0.25).sum()),
-            "moderate": int(
-                ((zone_scores >= 0.25) & (zone_scores < 0.5)).sum()
-            ),
-            "high": int(
-                ((zone_scores >= 0.5) & (zone_scores < 0.75)).sum()
-            ),
-            "critical": int((zone_scores >= 0.75).sum()),
-        }
-        total_zones = int(len(zone_scores))
-    else:
-        risk_levels = {
-            "low": 0,
-            "moderate": 0,
-            "high": 0,
-            "critical": 0,
-        }
-        total_zones = 0
-
-    hourly_series = pd.to_numeric(df["hour"], errors="coerce").dropna()
+    hourly_series = pd.to_numeric(df["hour"], errors="coerce")
     hourly_series = hourly_series[hourly_series.between(0, 23)].astype(int)
-    hourly = {
-        str(hour): int((hourly_series == hour).sum())
-        for hour in range(24)
-    }
-
+    hourly = {str(hour): int((hourly_series == hour).sum()) for hour in range(24)}
     periods = df["hour"].map(_period).value_counts()
     time_period = {
         name: int(periods.get(name, 0))
@@ -159,10 +172,13 @@ def _summarize(df: pd.DataFrame):
         "minor_accidents": minor,
         "major_accidents": major,
         "fatal_accidents": fatal,
-        "total_risk_zones": total_zones,
-        "risk_levels": risk_levels,
+        "total_casualties": int(df["casualties"].sum()),
+        "total_risk_zones": len(hotspots),
+        "risk_levels": {
+            level: int(risk_counts.get(level, 0))
+            for level in ["low", "moderate", "high", "critical"]
+        },
     }
-
     analysis = {
         "causes": _counts(df["cause"]),
         "weather": _counts(df["weather"]),
@@ -170,19 +186,26 @@ def _summarize(df: pd.DataFrame):
         "traffic_density": _counts(df["traffic_density"]),
         "hourly": hourly,
         "time_period": time_period,
-        "severity": {
-            "minor": minor,
-            "major": major,
-            "fatal": fatal,
-            **{
-                key: value
-                for key, value in _counts(severity).items()
-                if key not in {"minor", "major", "fatal"}
-            },
-        },
+        "severity": {"minor": minor, "major": major, "fatal": fatal},
     }
-
     return stats, analysis
+
+
+def _apply_filters(df: pd.DataFrame, city: str, severity: str, weather: str, time_period: str):
+    filtered = df
+    if city.strip().lower() != "all":
+        filtered = filtered[filtered["city"].str.lower() == city.strip().lower()]
+    if severity.strip().lower() != "all":
+        filtered = filtered[
+            filtered["accident_severity"] == severity.strip().lower()
+        ]
+    if weather.strip().lower() != "all":
+        filtered = filtered[filtered["weather"] == weather.strip().lower()]
+    if time_period.strip().lower() != "all":
+        filtered = filtered[
+            filtered["hour"].map(_period).str.lower() == time_period.strip().lower()
+        ]
+    return filtered
 
 
 @router.get("/filtered-dashboard")
@@ -193,22 +216,8 @@ def filtered_dashboard(
     time_period: str = Query("All"),
 ):
     df = _load_data()
-    filtered = df.copy()
-
-    if city != "All":
-        filtered = filtered[filtered["city"] == city]
-
-    if severity != "All":
-        filtered = filtered[filtered["accident_severity"] == severity.lower()]
-
-    if weather != "All":
-        filtered = filtered[filtered["weather"].str.lower() == weather.lower()]
-
-    if time_period != "All":
-        filtered = filtered[filtered["hour"].map(_period) == time_period]
-
+    filtered = _apply_filters(df, city, severity, weather, time_period)
     stats, analysis = _summarize(filtered)
-
     return {
         "statistics": stats,
         "analysis": analysis,
@@ -224,6 +233,8 @@ def filtered_dashboard(
             "weather": weather,
             "time_period": time_period,
         },
+        "dataset": DATASET_PATH.name,
+        "hotspot_method": "0.1-degree coordinate cells; severity-weighted index",
     }
 
 
@@ -234,68 +245,6 @@ def filtered_risk_zones(
     weather: str = Query("All"),
     time_period: str = Query("All"),
 ):
-    df = _load_data()
-    filtered = df.copy()
-
-    if city != "All":
-        filtered = filtered[filtered["city"] == city]
-
-    if severity != "All":
-        filtered = filtered[
-            filtered["accident_severity"] == severity.strip().lower()
-        ]
-
-    if weather != "All":
-        filtered = filtered[
-            filtered["weather"].str.lower() == weather.strip().lower()
-        ]
-
-    if time_period != "All":
-        filtered = filtered[
-            filtered["hour"].map(_period) == time_period
-        ]
-
-    zones = filtered.dropna(
-        subset=["latitude", "longitude"]
-    ).copy()
-
-    if zones.empty:
-        return {"status": "success", "count": 0, "zones": []}
-
-    zones["lat_grid"] = zones["latitude"].round(1)
-    zones["lon_grid"] = zones["longitude"].round(1)
-
-    result = []
-
-    for (lat, lon), group in zones.groupby(["lat_grid", "lon_grid"]):
-        score = float(group["risk_score"].mean())
-
-        if score >= 0.75:
-            level = "Critical"
-        elif score >= 0.5:
-            level = "High"
-        elif score >= 0.25:
-            level = "Moderate"
-        else:
-            level = "Low"
-
-        casualties = (
-            pd.to_numeric(group["casualties"], errors="coerce").fillna(0).sum()
-            if "casualties" in group.columns
-            else 0
-        )
-
-        result.append({
-            "latitude": float(lat),
-            "longitude": float(lon),
-            "accident_count": int(len(group)),
-            "total_casualties": int(casualties),
-            "risk_score": round(score, 2),
-            "risk_level": level,
-        })
-
-    return {
-        "status": "success",
-        "count": len(result),
-        "zones": result,
-    }
+    filtered = _apply_filters(_load_data(), city, severity, weather, time_period)
+    zones = _hotspots(filtered)
+    return {"status": "success", "count": len(zones), "zones": zones}

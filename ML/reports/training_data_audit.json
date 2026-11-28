@@ -1,33 +1,40 @@
 {
-  "dataset_path": "C:\\Users\\dd708\\OneDrive\\Documents\\aa5th sem notes\\DEV\\DEV Filtration\\Data\\indian_roads_cleaned.csv",
+  "dataset_path": "C:\\Users\\dd708\\OneDrive\\Documents\\aa5th sem notes\\DEV\\DEV Filtration\\Data\\indian_roads_project_selected.csv",
   "dataset_rows": 20000,
-  "dataset_columns": 24,
+  "dataset_columns": 11,
   "available_columns": [
-    "accident_id",
+    "date",
     "city",
-    "state",
     "latitude",
     "longitude",
-    "date",
-    "time",
     "hour",
-    "day_of_week",
-    "is_weekend",
     "road_type",
-    "lanes",
-    "traffic_signal",
     "weather",
-    "visibility",
-    "temperature",
     "traffic_density",
     "cause",
-    "accident_severity",
-    "vehicles_involved",
     "casualties",
-    "is_peak_hour",
-    "festival",
-    "risk_score"
+    "accident_severity"
   ],
+  "target_class_distribution_all_valid_labels": {
+    "minor": 11025,
+    "major": 5988,
+    "fatal": 2987
+  },
+  "dataset_missing_values_by_column": {
+    "date": 0,
+    "city": 0,
+    "latitude": 0,
+    "longitude": 0,
+    "hour": 0,
+    "road_type": 0,
+    "weather": 0,
+    "traffic_density": 0,
+    "cause": 0,
+    "casualties": 0,
+    "accident_severity": 0
+  },
+  "dataset_duplicate_rows": 0,
+  "dataset_duplicate_accident_ids": null,
   "date_column": "date",
   "date_source_dtype": "str",
   "date_parse_method": "pandas.to_datetime(errors='coerce')",
@@ -65,94 +72,29 @@
   "categorical_features": [
     "road_type",
     "weather",
-    "visibility",
-    "traffic_density",
-    "festival"
+    "traffic_density"
   ],
   "numeric_features": [
-    "lanes",
-    "traffic_signal",
-    "temperature",
-    "hour",
-    "is_weekend",
-    "is_peak_hour"
+    "hour"
   ],
   "feature_columns": [
     "road_type",
     "weather",
-    "visibility",
     "traffic_density",
-    "festival",
-    "lanes",
-    "traffic_signal",
-    "temperature",
-    "hour",
-    "is_weekend",
-    "is_peak_hour"
+    "hour"
   ],
   "feature_missing_values": {
     "road_type": 0,
     "weather": 0,
-    "visibility": 0,
     "traffic_density": 0,
-    "festival": 0,
-    "lanes": 0,
-    "traffic_signal": 0,
-    "temperature": 0,
-    "hour": 0,
-    "is_weekend": 0,
-    "is_peak_hour": 0
+    "hour": 0
   },
   "feature_dtypes": {
     "road_type": "str",
     "weather": "str",
-    "visibility": "str",
     "traffic_density": "str",
-    "festival": "str",
-    "lanes": "int64",
-    "traffic_signal": "int64",
-    "temperature": "int64",
-    "hour": "int64",
-    "is_weekend": "int64",
-    "is_peak_hour": "int64"
+    "hour": "int64"
   },
   "random_state": 42,
-<<<<<<< HEAD
-  "selected_by": "highest 2024 validation macro-F1; no 2025 data used",
-  "target_class_distribution_all_valid_labels": {
-    "minor": 11025,
-    "major": 5988,
-    "fatal": 2987
-  },
-  "dataset_missing_values_by_column": {
-    "accident_id": 0,
-    "city": 0,
-    "state": 0,
-    "latitude": 0,
-    "longitude": 0,
-    "date": 0,
-    "time": 0,
-    "hour": 0,
-    "day_of_week": 0,
-    "is_weekend": 0,
-    "road_type": 0,
-    "lanes": 0,
-    "traffic_signal": 0,
-    "weather": 0,
-    "visibility": 0,
-    "temperature": 0,
-    "traffic_density": 0,
-    "cause": 0,
-    "accident_severity": 0,
-    "vehicles_involved": 0,
-    "casualties": 0,
-    "is_peak_hour": 0,
-    "festival": 0,
-    "risk_score": 0
-  },
-  "dataset_duplicate_rows": 0,
-  "dataset_duplicate_accident_ids": 0
-=======
   "selected_by": "highest 2024 validation macro-F1; no 2025 data used"
->>>>>>> 383f80c06fc073766380912f274f0db73d3b64c4
 }

@@ -8,8 +8,7 @@ import {
 } from "react-leaflet";
 
 import "leaflet/dist/leaflet.css";
-
-const API_URL = "http://127.0.0.1:8000";
+import { API_BASE_URL } from "./api";
 
 function MapController({ latitude, longitude }) {
   const map = useMap();
@@ -66,7 +65,7 @@ function RiskMap({
         });
 
         const response = await fetch(
-          `${API_URL}/filtered-risk-zones?${params.toString()}`,
+          `${API_BASE_URL}/filtered-risk-zones?${params.toString()}`,
           { signal: controller.signal }
         );
 
@@ -132,11 +131,13 @@ function RiskMap({
               }}
             >
               <Popup>
-                <strong>{zone.risk_level} Risk</strong>
+                <strong>{zone.risk_level} Severity Index</strong>
                 <br />
-                Risk Score: {zone.risk_score}
+                Severity index: {zone.risk_score}
                 <br />
                 Accidents: {zone.accident_count}
+                <br />
+                Fatal: {zone.fatal_count} · Major: {zone.major_count} · Minor: {zone.minor_count}
                 <br />
                 Casualties: {zone.total_casualties}
                 <br />

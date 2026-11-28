@@ -1,0 +1,4 @@
+accident_severity,records,total_casualties,mean,median,maximum
+minor,11025,16612,1.51,1.0,5
+major,5988,8951,1.49,1.0,5
+fatal,2987,8966,3.0,3.0,5
